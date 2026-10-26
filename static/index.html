@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TV Local - Lupown Crypto</title>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: #0b0e14;
+      color: #d1d4dc;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      height: 46px;
+      flex: 0 0 46px;
+      background: #131722;
+      border-bottom: 1px solid #2a2e39;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 14px;
+      justify-content: space-between;
+    }
+
+    .left-controls,
+    .right-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .active-symbol {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-right: 6px;
+    }
+
+    .live-price {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #26a69a;
+      min-width: 90px;
+    }
+
+    .btn {
+      background: #1e222d;
+      color: #b2b5be;
+      border: 1px solid #2a2e39;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .btn:hover {
+      background: #2a2e39;
+      color: #fff;
+    }
+
+    .btn.active {
+      background: #2962ff;
+      color: #ffffff;
+      border-color: #2962ff;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: inline-block;
+      margin-right: 4px;
+    }
+
+    .workspace {
+      display: flex;
+      height: calc(100vh - 46px);
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    .charts-col {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      position: relative;
+    }
+
+    #main-chart {
+      height: 62%;
+      width: 100%;
+      position: relative;
+    }
+
+    .divider {
+      height: 4px;
+      flex: 0 0 4px;
+      background: #2a2e39;
+    }
+
+    #osc-chart {
+      height: calc(38% - 4px);
+      width: 100%;
+      position: relative;
+    }
+
+    .legend-box {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      z-index: 20;
+      pointer-events: none;
+      font-size: 0.78rem;
+      display: flex;
+      gap: 12px;
+      background: rgba(19, 23, 34, 0.8);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    #vp-canvas {
+      position: absolute;
+      top: 0;
+      right: 70px;
+      width: 130px;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    .sidebar {
+      width: 270px;
+      flex: 0 0 270px;
+      height: 100%;
+      background: #131722;
+      border-left: 1px solid #2a2e39;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .search-box {
+      padding: 8px;
+      border-bottom: 1px solid #2a2e39;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: #1e222d;
+      border: 1px solid #2a2e39;
+      color: #fff;
+      padding: 7px 10px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .symbol-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .sym-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid #1e222d;
+      cursor: pointer;
+      font-size: 0.83rem;
+    }
+
+    .sym-item:hover {
+      background: #1e222d;
+    }
+
+    .sym-item.selected {
+      background: #1e293b;
+      border-left: 3px solid #2962ff;
+    }
+
+    .sym-badge {
+      font-size: 0.65rem;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background: #334155;
+      color: #94a3b8;
+    }
+
+    .sym-badge.bfx {
+      background: #065f46;
+      color: #6ee7b7;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div class="left-controls">
+      <span class="active-symbol" id="lbl-symbol">BTCUSDT</span>
+      <span class="live-price" id="lbl-price">Cargando...</span>
+      <button class="btn tf-btn" data-tf="1m">1m</button>
+      <button class="btn tf-btn" data-tf="5m">5m</button>
+      <button class="btn tf-btn" data-tf="15m">15m</button>
+      <button class="btn tf-btn active" data-tf="1h">1H</button>
+      <button class="btn tf-btn" data-tf="4h">4H</button>
+      <button class="btn tf-btn" data-tf="1d">1D</button>
+      <button class="btn tf-btn" data-tf="1w">1W</button>
+    </div>
+    <div class="right-controls">
+      <button class="btn active" id="toggle-emas">EMAs (10/55/100/200)</button>
+      <button class="btn active" id="toggle-vp">POC & Vol Profile</button>
+      <button class="btn active" id="toggle-signals">🐳 Whales</button>
+      <span style="font-size:0.75rem; color:#94a3b8; margin-left:8px;"><span class="status-dot"
+          id="status-dot"></span><span id="status-txt">LIVE</span></span>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="charts-col">
+      <div id="main-chart">
+        <div class="legend-box">
+          <span style="color:#3b78eb">● EMA 10</span>
+          <span style="color:#B45F04">● EMA 55</span>
+          <span style="color:#a855f7">● EMA 100</span>
+          <span style="color:#ef4444">● EMA 200</span>
+          <span style="color:#ff0000">― POC</span>
+        </div>
+        <canvas id="vp-canvas"></canvas>
+      </div>
+
+      <div class="divider"></div>
+
+      <div id="osc-chart">
+        <div class="legend-box">
+          <span style="color:#da00ff">● RSI (Arriba)</span>
+          <span style="color:#00FF00">■ Squeeze Mom (Base 0)</span>
+          <span style="color:#ffffff">― ADX (Nivel 23 = Eje 0)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="search-box">
+        <input type="text" id="sym-search" placeholder="Buscar cripto o LONGS/SHORTS..." />
+      </div>
+      <div class="symbol-list" id="sym-list"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentSymbol = 'BTCUSDT';
+    let currentInterval = '1h';
+    let allSymbols = [];
+    let binanceWs = null;
+    let showEmas = true, showVp = true, showSignals = true;
+    let lastVpData = [], lastMarkers = [];
+
+    const mainEl = document.getElementById('main-chart');
+    const oscEl = document.getElementById('osc-chart');
+
+    function getBaseOptions(el) {
+      return {
+        width: el.clientWidth || 800,
+        height: el.clientHeight || 400,
+        autoSize: true,
+        layout: { background: { color: '#0b0e14' }, textColor: '#94a3b8' },
+        grid: { vertLines: { color: '#161a25' }, horzLines: { color: '#161a25' } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        rightPriceScale: { borderColor: '#2a2e39' },
+        timeScale: { borderColor: '#2a2e39', timeVisible: true, secondsVisible: false }
+      };
+    }
+
+    const mainChart = LightweightCharts.createChart(mainEl, getBaseOptions(mainEl));
+    const oscChart = LightweightCharts.createChart(oscEl, getBaseOptions(oscEl));
+
+    const candleSeries = mainChart.addCandlestickSeries({
+      upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350'
+    });
+    const ema10Series = mainChart.addLineSeries({ color: '#3b78eb', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    const ema55Series = mainChart.addLineSeries({ color: '#B45F04', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    const ema100Series = mainChart.addLineSeries({ color: '#a855f7', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    const ema200Series = mainChart.addLineSeries({ color: '#ef4444', lineWidth: 3, priceLineVisible: false, lastValueVisible: false });
+    let pocPriceLine = null;
+
+    const sqzSeries = oscChart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false, base: 0 });
+    const adxSeries = oscChart.addLineSeries({ color: '#ffffff', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    const zeroLineSeries = oscChart.addLineSeries({ color: '#475569', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+
+    const rsiSeries = oscChart.addLineSeries({ color: '#da00ff', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    const rsi70Series = oscChart.addLineSeries({ color: 'rgba(239, 68, 68, 0.45)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+    const rsi50Series = oscChart.addLineSeries({ color: 'rgba(148, 163, 184, 0.25)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+    const rsi30Series = oscChart.addLineSeries({ color: 'rgba(34, 197, 94, 0.45)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+
+    let isSyncingMain = false, isSyncingOsc = false;
+    mainChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (isSyncingOsc || !range) return;
+      isSyncingMain = true;
+      oscChart.timeScale().setVisibleLogicalRange(range);
+      isSyncingMain = false;
+      drawVolumeProfile();
+    });
+    oscChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (isSyncingMain || !range) return;
+      isSyncingOsc = true;
+      mainChart.timeScale().setVisibleLogicalRange(range);
+      isSyncingOsc = false;
+    });
+
+    function drawVolumeProfile() {
+      const canvas = document.getElementById('vp-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!showVp || !lastVpData.length) return;
+
+      lastVpData.forEach(item => {
+        const y = candleSeries.priceToCoordinate(item.price);
+        if (y === null || y < 0 || y > canvas.height) return;
+        const barW = item.pct * (canvas.width - 10);
+        ctx.fillStyle = item.pct > 0.8 ? 'rgba(245, 124, 0, 0.45)' : 'rgba(120, 123, 134, 0.30)';
+        ctx.fillRect(canvas.width - barW, y - 2, barW, 4);
+      });
+    }
+
+    async function loadChart(isInitial = false) {
+      if (document.hidden && !isInitial) return;
+      try {
+        const res = await fetch(`/api/chart?symbol=${currentSymbol}&interval=${currentInterval}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!data.candles || !data.candles.length) return;
+
+        // Limpiar el POC previo antes de inyectar las velas nuevas
+        if (pocPriceLine) {
+          candleSeries.removePriceLine(pocPriceLine);
+          pocPriceLine = null;
+        }
+
+        // Cargar velas e indicadores
+        candleSeries.setData(data.candles);
+        const lastCandle = data.candles[data.candles.length - 1];
+        document.getElementById('lbl-price').textContent = lastCandle.close.toLocaleString(undefined, { maximumFractionDigits: 4 });
+
+        ema10Series.setData(showEmas ? data.ema10 : []);
+        ema55Series.setData(showEmas ? data.ema55 : []);
+        ema100Series.setData(showEmas ? data.ema100 : []);
+        ema200Series.setData(showEmas ? data.ema200 : []);
+
+        // Crear la nueva línea POC adaptada al rango de la moneda actual
+        if (showVp && data.poc) {
+          pocPriceLine = candleSeries.createPriceLine({
+            price: data.poc,
+            color: '#ff0000',
+            lineWidth: 2,
+            lineStyle: LightweightCharts.LineStyle.Solid,
+            axisLabelVisible: true,
+            title: 'POC'
+          });
+        }
+        lastVpData = data.vp || [];
+        setTimeout(drawVolumeProfile, 50);
+
+        lastMarkers = data.markers || [];
+        try { candleSeries.setMarkers(showSignals ? lastMarkers : []); } catch (e) { }
+
+        sqzSeries.setData(data.squeeze);
+        adxSeries.setData(data.adx);
+        rsiSeries.setData(data.rsi);
+
+        const times = data.candles.map(c => c.time);
+        zeroLineSeries.setData(times.map(t => ({ time: t, value: 0 })));
+        rsi70Series.setData(times.map(t => ({ time: t, value: data.rsi_bands.b70 })));
+        rsi50Series.setData(times.map(t => ({ time: t, value: data.rsi_bands.b50 })));
+        rsi30Series.setData(times.map(t => ({ time: t, value: data.rsi_bands.b30 })));
+
+        document.getElementById('status-dot').style.background = '#22c55e';
+        document.getElementById('status-txt').textContent = 'LIVE (5s)';
+
+        // 3. Forzar re-escalado automático del eje Y y ajuste horizontal
+        if (isInitial) {
+          mainChart.priceScale('right').applyOptions({ autoScale: true });
+          mainChart.timeScale().fitContent();
+          oscChart.priceScale('right').applyOptions({ autoScale: true });
+          oscChart.timeScale().fitContent();
+          connectLiveWebSocket(data.is_bitfinex);
+        }
+      } catch (err) {
+        console.error('Error cargando chart:', err);
+        document.getElementById('status-dot').style.background = '#ef4444';
+        document.getElementById('status-txt').textContent = 'ERR API';
+      }
+    }
+
+    function connectLiveWebSocket(isBitfinex) {
+      if (binanceWs) {
+        binanceWs.close();
+        binanceWs = null;
+      }
+      if (isBitfinex) return;
+
+      const streamName = `${currentSymbol.toLowerCase()}@kline_${currentInterval}`;
+      binanceWs = new WebSocket(`wss://stream.binance.com:9443/ws/${streamName}`);
+      binanceWs.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (!msg.k) return;
+        const k = msg.k;
+        const liveCandle = {
+          time: Math.floor(k.t / 1000),
+          open: parseFloat(k.o),
+          high: parseFloat(k.h),
+          low: parseFloat(k.l),
+          close: parseFloat(k.c)
+        };
+        candleSeries.update(liveCandle);
+        const priceEl = document.getElementById('lbl-price');
+        priceEl.textContent = liveCandle.close.toLocaleString(undefined, { maximumFractionDigits: 4 });
+        priceEl.style.color = liveCandle.close >= liveCandle.open ? '#26a69a' : '#ef5350';
+      };
+    }
+
+    async function loadSymbols() {
+      const res = await fetch('/api/symbols');
+      allSymbols = await res.json();
+      renderSymbolList('');
+    }
+
+    function renderSymbolList(filter) {
+      const container = document.getElementById('sym-list');
+      const q = filter.trim().toUpperCase();
+      const filtered = allSymbols.filter(s => s.symbol.includes(q)).slice(0, 180);
+      container.innerHTML = filtered.map(item => {
+        const isSel = item.symbol === currentSymbol ? 'selected' : '';
+        const isBfx = item.source === 'BITFINEX';
+        return `
+          <div class="sym-item ${isSel}" onclick="selectSymbol('${item.symbol}')">
+            <div>
+              <div style="font-weight:600; color:#fff;">${item.symbol}</div>
+              ${item.desc ? `<div style="font-size:0.7rem; color:#64748b;">${item.desc}</div>` : ''}
+            </div>
+            <span class="sym-badge ${isBfx ? 'bfx' : ''}">${item.source}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.selectSymbol = (sym) => {
+      currentSymbol = sym;
+      document.getElementById('lbl-symbol').textContent = sym;
+      document.getElementById('lbl-price').textContent = 'Cargando...';
+
+      // 1. Limpiar Volume Profile anterior inmediatamente
+      lastVpData = [];
+      const canvas = document.getElementById('vp-canvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // 2. Quitar la línea del POC de la moneda anterior ANTES de traer los nuevos datos
+      if (pocPriceLine) {
+        candleSeries.removePriceLine(pocPriceLine);
+        pocPriceLine = null;
+      }
+
+      renderSymbolList(document.getElementById('sym-search').value);
+      loadChart(true);
+    };
+
+
+    document.getElementById('sym-search').addEventListener('input', (e) => renderSymbolList(e.target.value));
+
+    document.querySelectorAll('.tf-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentInterval = btn.dataset.tf;
+        loadChart(true);
+      });
+    });
+
+    document.getElementById('toggle-emas').addEventListener('click', function () {
+      showEmas = !showEmas;
+      this.classList.toggle('active', showEmas);
+      loadChart(false);
+    });
+    document.getElementById('toggle-vp').addEventListener('click', function () {
+      showVp = !showVp;
+      this.classList.toggle('active', showVp);
+      loadChart(false);
+    });
+    document.getElementById('toggle-signals').addEventListener('click', function () {
+      showSignals = !showSignals;
+      this.classList.toggle('active', showSignals);
+      try { candleSeries.setMarkers(showSignals ? lastMarkers : []); } catch (e) { }
+    });
+
+    window.addEventListener('resize', drawVolumeProfile);
+
+    loadSymbols();
+    loadChart(true);
+    setInterval(() => loadChart(false), 5000);
+  </script>
+</body>
+
+</html>
